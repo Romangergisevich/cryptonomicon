@@ -10,7 +10,7 @@
                 class="block w-full pr-10 border-gray-300 text-gray-900 focus:outline-none focus:ring-gray-500 focus:border-gray-500 sm:text-sm rounded-md"
                 placeholder="Например DOGE" />
             </div>
-            <div class="flex bg-white shadow-md p-1 rounded-md shadow-md flex-wrap">
+            <div class="flex bg-white shadow-md p-1 rounded-md shadow-md flex-wrap hidden">
               <span
                 class="inline-flex items-center px-2 m-1 rounded-md text-xs font-medium bg-gray-300 text-gray-800 cursor-pointer">
                 BTC
@@ -28,7 +28,7 @@
                 CHD
               </span>
             </div>
-            <div class="text-sm text-red-600">Такой тикер уже добавлен</div>
+            <div v-if="isVisible" class="text-sm text-red-600">Такой тикер уже добавлен</div>
           </div>
         </div>
         <button type="button" @click="add()"
@@ -103,17 +103,27 @@ export default {
     return {
       ticker: '',
       tickers: [],
+      tickerNames: [],
       sel: null,
       graph: [],
+      isVisible: false,
     }
   },
   methods: {
     add() {
       let currentTicker = {
-        name: this.ticker,
+        name: this.ticker.toUpperCase(),
         price: "-",
       }
-      this.tickers.push(currentTicker);
+      if (this.tickerNames.includes(currentTicker.name)) {
+        this.isVisible = true;
+        setTimeout(() => {
+          this.isVisible = false;
+        }, 3000);
+      } else {
+        this.tickers.push(currentTicker);
+        this.tickerNames.push(currentTicker.name);
+      }
 
       setInterval(async () => {
         let f = await fetch('https://min-api.cryptocompare.com/data/price?fsym=' + currentTicker.name + '&tsyms=USD&api_key=a6813f5aca076754f9cfc22c080919caba793c3b006538e067b52ee217b981bf');
@@ -136,6 +146,7 @@ export default {
 
     handleDelete(tickToRemove) {
       this.tickers = this.tickers.filter(t => t != tickToRemove);
+      this.tickerNames = this.tickerNames.filter(t => t != tickToRemove.name);
       this.sel = null;
     },
 
