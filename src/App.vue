@@ -10,22 +10,10 @@
                 class="block w-full pr-10 border-gray-300 text-gray-900 focus:outline-none focus:ring-gray-500 focus:border-gray-500 sm:text-sm rounded-md"
                 placeholder="Например DOGE" />
             </div>
-            <div class="flex bg-white shadow-md p-1 rounded-md shadow-md flex-wrap hidden">
-              <span
+            <div v-if="isVariants" class="flex bg-white shadow-md p-1 rounded-md shadow-md flex-wrap">
+              <span v-for="coinName, index in coinsNamesPrev" :key="index"
                 class="inline-flex items-center px-2 m-1 rounded-md text-xs font-medium bg-gray-300 text-gray-800 cursor-pointer">
-                BTC
-              </span>
-              <span
-                class="inline-flex items-center px-2 m-1 rounded-md text-xs font-medium bg-gray-300 text-gray-800 cursor-pointer">
-                DOGE
-              </span>
-              <span
-                class="inline-flex items-center px-2 m-1 rounded-md text-xs font-medium bg-gray-300 text-gray-800 cursor-pointer">
-                BCH
-              </span>
-              <span
-                class="inline-flex items-center px-2 m-1 rounded-md text-xs font-medium bg-gray-300 text-gray-800 cursor-pointer">
-                CHD
+                {{ coinName }}
               </span>
             </div>
             <div v-if="isVisible" class="text-sm text-red-600">Такой тикер уже добавлен</div>
@@ -107,8 +95,41 @@ export default {
       sel: null,
       graph: [],
       isVisible: false,
+      isVariants: false,
+      coinsNames: [],
     }
   },
+
+  mounted() {
+    return new Promise((resolve, reject) => {
+      fetch('https://min-api.cryptocompare.com/data/all/coinlist?summary=true')
+        .then(response => response.json())
+        .then(data => {
+          resolve(data), Array.from(Object.values(data.Data)).forEach((e) => {
+            this.coinsNames.push(e.FullName);
+          })
+        })
+        .catch(error => reject(error))
+    })
+  },
+
+  watch: {
+    ticker(val) {
+      if (val.length > 0) {
+        this.isVariants = true;
+      } else {
+        this.isVariants = false;
+      }
+    }
+  },
+
+  computed: {
+    coinsNamesPrev() {
+      return this.coinsNames.slice(0, 5);
+    },
+  },
+
+
   methods: {
     add() {
       let currentTicker = {
@@ -153,7 +174,18 @@ export default {
     select(tick) {
       this.sel = tick;
       this.graph = [];
-    }
-  }
+    },
+
+    // removeNonBracketTextFromArray(arr) {
+    //   const result = arr.map(text => {
+    //     const regex = /\((.*?)\)/g;
+    //     const match = regex.exec(text);
+    //     if (match) {
+    //       return match[0];
+    //     }
+    //     return '';
+    //   });
+    // },
+  },
 }
 </script>
