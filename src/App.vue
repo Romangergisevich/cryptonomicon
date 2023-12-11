@@ -188,6 +188,7 @@ export default {
         this.subscribeToUpdates(currentTicker.name);
       }
       this.ticker = "";
+      this.filter = "";
     },
 
     normalazeGraph() {
