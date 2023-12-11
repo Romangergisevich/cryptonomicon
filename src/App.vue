@@ -129,8 +129,34 @@ export default {
     },
   },
 
+  created() {
+    const tickersData = localStorage.getItem('cryptonomicon-list')
+    if (tickersData) {
+      this.tickers = JSON.parse(tickersData);
+      this.tickers.forEach((e) => {
+        console.log(e);
+        this.subscribeToUpdates(e.name);
+      })
+    }
+  },
 
   methods: {
+    subscribeToUpdates(tickerName) {
+      const requestInterval = setInterval(async () => {
+        let f = await fetch('https://min-api.cryptocompare.com/data/price?fsym=' + tickerName + '&tsyms=USD&api_key=a6813f5aca076754f9cfc22c080919caba793c3b006538e067b52ee217b981bf');
+        let data = await f.json();
+        const includeEl = this.tickers.find(t => t.name === tickerName);
+        if (includeEl) {
+          includeEl.price = data.USD > 1 ? data.USD.toFixed(2) : data.USD.toPrecision(2);
+        } else {
+          clearInterval(requestInterval);
+        }
+        if (this.sel && this.sel.name == tickerName) {
+          this.graph.push(data.USD);
+        }
+      }, 3000);
+    },
+
     add() {
       let currentTicker = {
         name: this.ticker.toUpperCase(),
@@ -144,18 +170,9 @@ export default {
       } else {
         this.tickers.push(currentTicker);
         this.tickerNames.push(currentTicker.name);
+        localStorage.setItem('cryptonomicon-list', JSON.stringify(this.tickers));
+        this.subscribeToUpdates(currentTicker.name);
       }
-
-      setInterval(async () => {
-        let f = await fetch('https://min-api.cryptocompare.com/data/price?fsym=' + currentTicker.name + '&tsyms=USD&api_key=a6813f5aca076754f9cfc22c080919caba793c3b006538e067b52ee217b981bf');
-        let data = await f.json();
-        if (this.tickers.includes(currentTicker) == true) {
-          this.tickers.find(t => t.name === currentTicker.name).price = data.USD > 1 ? data.USD.toFixed(2) : data.USD.toPrecision(2);
-        }
-        if (this.sel && this.sel.name == currentTicker.name) {
-          this.graph.push(data.USD);
-        }
-      }, 3000);
       this.ticker = "";
     },
 
@@ -184,7 +201,7 @@ export default {
     //       return match[0];
     //     }
     //     return '';
-    //   });
+    //   }); 
     // },
   },
 }
