@@ -30,6 +30,10 @@
           </svg>
           Добавить
         </button>
+        <div class="flex items-center justify-start w-64">
+          <input type="text" id="small-input" placeholder="Filter"
+            class="block w-full pr-10 border-gray-300 text-gray-900 focus:outline-none focus:ring-gray-500 focus:border-gray-500 sm:text-sm rounded-md">
+        </div>
       </section>
       <div v-if="tickers.length">
         <hr class="w-full border-t border-gray-600 my-4" />
@@ -134,7 +138,6 @@ export default {
     if (tickersData) {
       this.tickers = JSON.parse(tickersData);
       this.tickers.forEach((e) => {
-        console.log(e);
         this.subscribeToUpdates(e.name);
       })
     }
@@ -185,6 +188,7 @@ export default {
     handleDelete(tickToRemove) {
       this.tickers = this.tickers.filter(t => t != tickToRemove);
       this.tickerNames = this.tickerNames.filter(t => t != tickToRemove.name);
+      localStorage.setItem('cryptonomicon-list', JSON.stringify(this.tickers));
       this.sel = null;
     },
 
@@ -192,17 +196,6 @@ export default {
       this.sel = tick;
       this.graph = [];
     },
-
-    // removeNonBracketTextFromArray(arr) {
-    //   const result = arr.map(text => {
-    //     const regex = /\((.*?)\)/g;
-    //     const match = regex.exec(text);
-    //     if (match) {
-    //       return match[0];
-    //     }
-    //     return '';
-    //   }); 
-    // },
   },
 }
 </script>
