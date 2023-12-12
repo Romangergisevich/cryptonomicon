@@ -7,7 +7,7 @@
             <div class="mt-1 relative rounded-md shadow-md">
               <input type="text" name="wallet" id="wallet" v-model="ticker" v-on:keydown.enter="add()"
                 class="block w-full pr-10 border-gray-300 text-gray-900 focus:outline-none focus:ring-gray-500 focus:border-gray-500 sm:text-sm rounded-md"
-                placeholder="Например DOGE" />
+                placeholder="Например BTC" />
             </div>
             <div v-if="isVariants" class="flex bg-white shadow-md p-1 rounded-md shadow-md flex-wrap">
               <span @click="ticker = coinName, add()" v-for="coinName, index in autoCompleteNames()" :key="index"
@@ -29,8 +29,16 @@
           Добавить
         </button>
         <div class="flex items-center justify-start w-64">
-          <input v-model="filter" type="text" id="small-input" placeholder="Filter"
+          <input v-model="filter" type="text" id="small-input" placeholder="Фильтр"
             class="block w-full pr-10 border-gray-300 text-gray-900 focus:outline-none focus:ring-gray-500 focus:border-gray-500 sm:text-sm rounded-md">
+        </div>
+        <div>
+          <button @click="page = page - 1" v-if="page > 1"
+            class="my-4 inline-flex items-center py-2 px-4 border border-transparent shadow-sm text-sm leading-4 font-medium rounded-full text-white bg-gray-600 hover:bg-gray-700 transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+            type="button">Назад</button>
+          <button @click="page = page + 1" v-if="hasNextPage"
+            class="my-4 ml-1 inline-flex items-center py-2 px-4 border border-transparent shadow-sm text-sm leading-4 font-medium rounded-full text-white bg-gray-600 hover:bg-gray-700 transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+            type="button">Вперед</button>
         </div>
       </section>
       <div v-if="tickers.length">
@@ -102,6 +110,7 @@ export default {
       coinsNames: [],
       page: 1,
       filter: "",
+      hasNextPage: true,
     }
   },
 
@@ -125,6 +134,9 @@ export default {
       } else {
         this.isVariants = false;
       }
+    },
+    filter() {
+      this.page = 1;
     }
   },
 
@@ -137,12 +149,17 @@ export default {
         this.tickerNames.push(e.name);
       })
     }
-    
+
   },
 
   methods: {
     filteredTickers() {
-      return this.tickers.filter(ticker => ticker.name.includes(this.filter.toUpperCase()))
+      const start = (this.page - 1) * 6;
+      const end = this.page * 6;
+      const filteredTickers = this.tickers.filter(ticker => ticker.name.includes(this.filter.toUpperCase()));
+      this.hasNextPage = filteredTickers.length > end;
+
+      return filteredTickers.slice(start, end);
     },
 
     autoCompleteNames() {
