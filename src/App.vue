@@ -29,7 +29,7 @@
           Добавить
         </button>
         <div class="flex items-center justify-start w-64">
-          <input v-model="filter" type="text" id="small-input" placeholder="Фильтр"
+          <input v-model="filter" @input="page = 1" type="text" id="small-input" placeholder="Фильтр"
             class="block w-full pr-10 border-gray-300 text-gray-900 focus:outline-none focus:ring-gray-500 focus:border-gray-500 sm:text-sm rounded-md">
         </div>
         <div>
@@ -44,7 +44,7 @@
       <div v-if="tickers.length">
         <hr class="w-full border-t border-gray-600 my-4" />
         <dl class="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-3">
-          <div v-for="tick in filteredTickers()" :key="tick.name" @click="select(tick)"
+          <div v-for="tick in paginatedTickers" :key="tick.name" @click="select(tick)"
             :class="sel == tick ? 'border-4' : ''"
             class="bg-white overflow-hidden shadow rounded-lg border-purple-800 border-solid cursor-pointer">
             <div class="px-4 py-5 sm:p-6 text-center">
@@ -74,7 +74,7 @@
           {{ sel.name }} - {{ sel.price }}
         </h3>
         <div class="flex items-end border-gray-600 border-b border-l h-64">
-          <div v-for="bar, i in normalazeGraph()" :key="i" :style="{ height: `${bar}%` }"
+          <div v-for="bar, i in normalazedGraph" :key="i" :style="{ height: `${bar}%` }"
             class="bg-purple-800 border w-10 h-24">
           </div>
         </div>
@@ -95,22 +95,39 @@
 </template>
 
 <script>
+// [] 6. наличие сосяний зависимых данных - критичность: 5+
+// [] 4. запросы напрямую внутри компонентов - критичность: 5
+// [] 2. при удалении остаётся подписка на подгрузку тикера - критичность: 5
+// [] 5. обработка ошибок API - критичность: 5
+// [] 3. количесто запросов - критичность: 4
+// [] 8. при удалении тикера не меняется localStorage - критичность: 4
+// [] 1. одинаковый код в watch (?) - критичность: 3
+// [] 9. localStorage и анонимные вкладки - критичность: 3
+// [] 7. график ужасно выглядит, если будтммннго цн - критичность: 2
+// [] 10. магические строки и числа (URL, 5000 мс задержка, ключ locallStorage кол-во на странице): 1
 
+// параллельно
+// [x] график сломан, если везде одинаковые значения
+// [] при удалении тикера остаётся выбор
 export default {
   name: 'App',
   data() {
     return {
       ticker: '',
+      filter: "",
+
       tickers: [],
       tickerNames: [],
       sel: null,
+
       graph: [],
+
       isVisible: false,
       isVariants: false,
+
       coinsNames: [],
+
       page: 1,
-      filter: "",
-      hasNextPage: true,
     }
   },
 
@@ -135,9 +152,11 @@ export default {
         this.isVariants = false;
       }
     },
-    filter() {
-      this.page = 1;
-    }
+    // paginatedTickers() {
+    //   if(this.paginatedTickers.length == 0 && this.page > 1){
+        
+    //   }
+    // }
   },
 
   created() {
@@ -152,15 +171,41 @@ export default {
 
   },
 
-  methods: {
-    filteredTickers() {
-      const start = (this.page - 1) * 6;
-      const end = this.page * 6;
-      const filteredTickers = this.tickers.filter(ticker => ticker.name.includes(this.filter.toUpperCase()));
-      this.hasNextPage = filteredTickers.length > end;
-
-      return filteredTickers.slice(start, end);
+  computed: {
+    startIndex() {
+      return (this.page - 1) * 6;
     },
+
+    endIndex() {
+      return this.page * 6;
+    },
+
+    filteredTickers() {
+      return this.tickers.filter(ticker => ticker.name.includes(this.filter.toUpperCase()));
+      
+    },
+    
+    paginatedTickers() {
+      return this.filteredTickers.slice(this.startIndex, this.endIndex);
+    },
+
+    hasNextPage() {
+      return this.filteredTickers.length > this.endIndex;
+    },
+
+    normalazedGraph() {
+      const maxValue = Math.max(...this.graph);
+      const minValue = Math.min(...this.graph);
+
+      if(maxValue == minValue) {
+        return this.graph.map(() => 50)
+      }
+
+      return this.graph.map(price => 3 + ((price - minValue) * 97) / (maxValue - minValue))
+    },
+  },
+
+  methods: {
 
     autoCompleteNames() {
       return this.coinsNames.filter(name => name.includes(this.ticker.toUpperCase())).slice(0, 4);
@@ -206,12 +251,6 @@ export default {
       }
       this.ticker = "";
       this.filter = "";
-    },
-
-    normalazeGraph() {
-      const maxValue = Math.max(...this.graph);
-      const minValue = Math.min(...this.graph);
-      return this.graph.map(price => 3 + ((price - minValue) * 97) / (maxValue - minValue))
     },
 
     handleDelete(tickToRemove) {
