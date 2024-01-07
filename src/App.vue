@@ -45,7 +45,7 @@
         <hr class="w-full border-t border-gray-600 my-4" />
         <dl class="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-3">
           <div v-for="tick in paginatedTickers" :key="tick.name" @click="select(tick)"
-            :class="sel == tick ? 'border-4' : ''"
+            :class="selectedTicker == tick ? 'border-4' : ''"
             class="bg-white overflow-hidden shadow rounded-lg border-purple-800 border-solid cursor-pointer">
             <div class="px-4 py-5 sm:p-6 text-center">
               <dt class="text-sm font-medium text-gray-500 truncate">
@@ -69,16 +69,16 @@
         </dl>
         <hr class="w-full border-t border-gray-600 my-4" />
       </div>
-      <section v-if="sel" class="relative">
+      <section v-if="selectedTicker" class="relative">
         <h3 class="text-lg leading-6 font-medium text-gray-900 my-8">
-          {{ sel.name }} - {{ sel.price }}
+          {{ selectedTicker.name }} - {{ selectedTicker.price }}
         </h3>
         <div class="flex items-end border-gray-600 border-b border-l h-64">
           <div v-for="bar, i in normalazedGraph" :key="i" :style="{ height: `${bar}%` }"
             class="bg-purple-800 border w-10 h-24">
           </div>
         </div>
-        <button @click="sel = null" type="button" class="absolute top-0 right-0">
+        <button @click="selectedTicker = null" type="button" class="absolute top-0 right-0">
           <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
             xmlns:svgjs="http://svgjs.com/svgjs" version="1.1" width="30" height="30" x="0" y="0"
             viewBox="0 0 511.76 511.76" style="enable-background:new 0 0 512 512" xml:space="preserve">
@@ -108,7 +108,7 @@
 
 // параллельно
 // [x] график сломан, если везде одинаковые значения
-// [] при удалении тикера остаётся выбор
+// [x] при удалении тикера остаётся выбор
 export default {
   name: 'App',
   data() {
@@ -118,7 +118,7 @@ export default {
 
       tickers: [],
       tickerNames: [],
-      sel: null,
+      selectedTicker: null,
 
       graph: [],
 
@@ -145,6 +145,14 @@ export default {
   },
 
   watch: {
+    tickers () {
+      localStorage.setItem('cryptonomicon-list', JSON.stringify(this.tickers));
+    },
+
+    selectedTicker () {
+      this.graph = [];
+    },
+
     ticker(val) {
       if (val.length > 0) {
         this.isVariants = true;
@@ -152,11 +160,11 @@ export default {
         this.isVariants = false;
       }
     },
-    // paginatedTickers() {
-    //   if(this.paginatedTickers.length == 0 && this.page > 1){
-        
-    //   }
-    // }
+    paginatedTickers() {
+      if(this.paginatedTickers.length == 0 && this.page > 1){
+        this.page -= 1;
+      }
+    }
   },
 
   created() {
@@ -227,7 +235,7 @@ export default {
         } else {
           clearInterval(requestInterval);
         }
-        if (this.sel && this.sel.name == tickerName) {
+        if (this.selectedTicker && this.selectedTicker.name == tickerName) {
           this.graph.push(data.USD);
         }
       }, 3000);
@@ -244,9 +252,8 @@ export default {
           this.isVisible = false;
         }, 3000);
       } else {
-        this.tickers.push(currentTicker);
+        this.tickers = [...this.tickers, currentTicker];
         this.tickerNames.push(currentTicker.name);
-        localStorage.setItem('cryptonomicon-list', JSON.stringify(this.tickers));
         this.subscribeToUpdates(currentTicker.name);
       }
       this.ticker = "";
@@ -257,12 +264,11 @@ export default {
       this.tickers = this.tickers.filter(t => t != tickToRemove);
       this.tickerNames = this.tickerNames.filter(t => t != tickToRemove.name);
       localStorage.setItem('cryptonomicon-list', JSON.stringify(this.tickers));
-      this.sel = null;
+      this.selectedTicker = null;
     },
 
     select(tick) {
-      this.sel = tick;
-      this.graph = [];
+      this.selectedTicker = tick;
     },
   },
 }
