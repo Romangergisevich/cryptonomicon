@@ -44,19 +44,19 @@
       <div v-if="tickers.length">
         <hr class="w-full border-t border-gray-600 my-4" />
         <dl class="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-3">
-          <div v-for="tick in paginatedTickers" :key="tick.name" @click="select(tick)"
-            :class="selectedTicker == tick ? 'border-4' : ''"
+          <div v-for="t in paginatedTickers" :key="t.name" @click="select(t)"
+            :class="selectedTicker == t ? 'border-4' : ''"
             class="bg-white overflow-hidden shadow rounded-lg border-purple-800 border-solid cursor-pointer">
             <div class="px-4 py-5 sm:p-6 text-center">
               <dt class="text-sm font-medium text-gray-500 truncate">
-                {{ tick.name }} - USD
+                {{ t.name }} - USD
               </dt>
               <dd class="mt-1 text-3xl font-semibold text-gray-900">
-                {{ tick.price }}
+                {{ formatPrice(t.price) }}
               </dd>
             </div>
             <div class="w-full border-t border-gray-200"></div>
-            <button @click.stop="handleDelete(tick)"
+            <button @click.stop="handleDelete(t)"
               class="flex items-center justify-center font-medium w-full bg-gray-100 px-4 py-4 sm:px-6 text-md text-gray-500 hover:text-gray-600 hover:bg-gray-200 hover:opacity-20 transition-all focus:outline-none">
               <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="#718096"
                 aria-hidden="true">
@@ -109,6 +109,13 @@
 // параллельно
 // [x] график сломан, если везде одинаковые значения
 // [x] при удалении тикера остаётся выбор
+
+//IMPORTS------------------------------------------------------------->
+
+import { subscribeToTicker, unsubscribeFromTicker } from './api.js'
+
+//EXPORT-------------------------------------------------------------->
+
 export default {
   name: 'App',
   data() {
@@ -131,6 +138,8 @@ export default {
     }
   },
 
+  //MOUNTED------------------------------------------------------------>
+
   mounted() {
     return new Promise((resolve, reject) => {
       fetch('https://min-api.cryptocompare.com/data/all/coinlist?summary=true')
@@ -144,12 +153,14 @@ export default {
     })
   },
 
+  //WATCH-------------------------------------------------------------->
+
   watch: {
-    tickers () {
+    tickers() {
       localStorage.setItem('cryptonomicon-list', JSON.stringify(this.tickers));
     },
 
-    selectedTicker () {
+    selectedTicker() {
       this.graph = [];
     },
 
@@ -161,23 +172,26 @@ export default {
       }
     },
     paginatedTickers() {
-      if(this.paginatedTickers.length == 0 && this.page > 1){
+      if (this.paginatedTickers.length == 0 && this.page > 1) {
         this.page -= 1;
       }
     }
   },
 
+  //CREATED----------------------------------------------------------->
+
   created() {
     const tickersData = localStorage.getItem('cryptonomicon-list')
+
     if (tickersData) {
       this.tickers = JSON.parse(tickersData);
-      this.tickers.forEach((e) => {
-        this.subscribeToUpdates(e.name);
-        this.tickerNames.push(e.name);
-      })
+      this.tickers.forEach((ticker) => {
+        subscribeToTicker(ticker.name, (newPrice) => this.updateTicker(ticker.name, newPrice));
+      });
     }
-
   },
+
+  //COMPUTED----------------------------------------------------------->
 
   computed: {
     startIndex() {
@@ -190,9 +204,9 @@ export default {
 
     filteredTickers() {
       return this.tickers.filter(ticker => ticker.name.includes(this.filter.toUpperCase()));
-      
+
     },
-    
+
     paginatedTickers() {
       return this.filteredTickers.slice(this.startIndex, this.endIndex);
     },
@@ -205,7 +219,7 @@ export default {
       const maxValue = Math.max(...this.graph);
       const minValue = Math.min(...this.graph);
 
-      if(maxValue == minValue) {
+      if (maxValue == minValue) {
         return this.graph.map(() => 50)
       }
 
@@ -213,7 +227,19 @@ export default {
     },
   },
 
+  //METHODS------------------------------------------------------------>
+
   methods: {
+    updateTicker(tickerName, price) {
+      this.tickers.filter(t => t.name === tickerName).forEach(t => { t.price = price })
+    },
+
+    formatPrice(price) {
+      if (price === '-') {
+        return price;
+      }
+      return price > 1 ? price.toFixed(2) : price.toPrecision(2);
+    },
 
     autoCompleteNames() {
       return this.coinsNames.filter(name => name.includes(this.ticker.toUpperCase())).slice(0, 4);
@@ -223,22 +249,6 @@ export default {
       let result = inputStr.match(/\(([^)]+)\)/g);
       result = result.map(text => text.replace(/\(|\)/g, ''));
       return result.join(' ');
-    },
-
-    subscribeToUpdates(tickerName) {
-      const requestInterval = setInterval(async () => {
-        let f = await fetch('https://min-api.cryptocompare.com/data/price?fsym=' + tickerName + '&tsyms=USD&api_key=a6813f5aca076754f9cfc22c080919caba793c3b006538e067b52ee217b981bf');
-        let data = await f.json();
-        const includeEl = this.tickers.find(t => t.name === tickerName);
-        if (includeEl) {
-          includeEl.price = data.USD > 1 ? data.USD.toFixed(2) : data.USD.toPrecision(2);
-        } else {
-          clearInterval(requestInterval);
-        }
-        if (this.selectedTicker && this.selectedTicker.name == tickerName) {
-          this.graph.push(data.USD);
-        }
-      }, 3000);
     },
 
     add() {
@@ -251,13 +261,13 @@ export default {
         setTimeout(() => {
           this.isVisible = false;
         }, 3000);
-      } else {
-        this.tickers = [...this.tickers, currentTicker];
-        this.tickerNames.push(currentTicker.name);
-        this.subscribeToUpdates(currentTicker.name);
       }
+      this.tickers = [...this.tickers, currentTicker];
       this.ticker = "";
       this.filter = "";
+      this.tickerNames.push(currentTicker.name);
+      subscribeToTicker(currentTicker.name, (newPrice) => this.updateTicker(currentTicker.name, newPrice));
+
     },
 
     handleDelete(tickToRemove) {
@@ -265,6 +275,7 @@ export default {
       this.tickerNames = this.tickerNames.filter(t => t != tickToRemove.name);
       localStorage.setItem('cryptonomicon-list', JSON.stringify(this.tickers));
       this.selectedTicker = null;
+      unsubscribeFromTicker(tickToRemove.name);
     },
 
     select(tick) {
