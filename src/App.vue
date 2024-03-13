@@ -73,7 +73,7 @@
         <h3 class="text-lg leading-6 font-medium text-gray-900 my-8">
           {{ selectedTicker.name }} - {{ selectedTicker.price }}
         </h3>
-        <div class="flex items-end border-gray-600 border-b border-l h-64">
+        <div class="flex items-end border-gray-600 border-b border-l h-64" ref="graph">
           <div v-for="bar, i in normalazedGraph" :key="i" :style="{ height: `${bar}%` }"
             class="bg-purple-800 border w-10 h-24">
           </div>
@@ -96,15 +96,15 @@
 
 <script>
 // [x] 6. наличие сосяний зависимых данных - критичность: 5+
-// [] 4. запросы напрямую внутри компонентов - критичность: 5
+// [x] 4. запросы напрямую внутри компонентов - критичность: 5
 // [x] 2. при удалении остаётся подписка на подгрузку тикера - критичность: 5
-// [] 5. обработка ошибок API - критичность: 5
-// [] 3. количесто запросов - критичность: 4
+// [h] 5. обработка ошибок API - критичность: 5
+// [x] 3. количесто запросов - критичность: 4
 // [x] 8. при удалении тикера не меняется localStorage - критичность: 4
 // [x] 1. одинаковый код в watch (?) - критичность: 3
-// [] 9. localStorage и анонимные вкладки - критичность: 3
-// [] 7. график ужасно выглядит, если будет много цен - критичность: 2
-// [] 10. магические строки и числа (URL, 5000 мс задержка, ключ locallStorage кол-во на странице): 1
+// [ ] 9. localStorage и анонимные вкладки - критичность: 3
+// [x] 7. график ужасно выглядит, если будет много цен - критичность: 2
+// [ ] 10. магические строки и числа (URL, 5000 мс задержка, ключ locallStorage кол-во на странице): 1
 
 // параллельно
 // [x] график сломан, если везде одинаковые значения
@@ -128,6 +128,7 @@ export default {
       selectedTicker: null,
 
       graph: [],
+      maxGraphElements: 1,
 
       isVisible: false,
       isVariants: false,
@@ -153,6 +154,9 @@ export default {
     })
   },
 
+  beforeUnmount() {
+    window.removeEventListener('resize', this.calculateMaxGraphElements())
+  },
   //WATCH-------------------------------------------------------------->
 
   watch: {
@@ -181,6 +185,10 @@ export default {
   //CREATED----------------------------------------------------------->
 
   created() {
+    window.addEventListener('resize', () => {
+      this.calculateMaxGraphElements()
+    })
+
     const tickersData = localStorage.getItem('cryptonomicon-list')
 
     if (tickersData) {
@@ -230,10 +238,21 @@ export default {
   //METHODS------------------------------------------------------------>
 
   methods: {
+
+    calculateMaxGraphElements() {
+      if (!this.$refs.graph) {
+        return;
+      }
+      this.maxGraphElements = this.$refs.graph.clientWidth / 38
+    },
+
     updateTicker(tickerName, price) {
+      this.calculateMaxGraphElements()
       this.tickers.filter(t => t.name === tickerName).forEach(t => {
         if (t == this.selectedTicker) {
           this.graph.push(price)
+        } while (this.graph.length > this.maxGraphElements) {
+          this.graph.shift();
         }
         t.price = price
       })
